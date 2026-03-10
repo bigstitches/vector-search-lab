@@ -2,9 +2,18 @@
 # stop script on error, undefined variable, or error in pipeline
 set -euo pipefail
 
+# Minimum (works, but can be tight)
+# RAM: 8 GB
+# Disk free before install: >3 GB
+# Recommended (smooth experience)
+# RAM: 12–16 GB
+# the .venv file is only ~1.0GB, and the model files are cached in ~/.cache/huggingface where the model files ~600GB, but additional files can bring it to ~1GB total.
+
+
+
 # Setup script for creating a virtual Python environment with required libraries
-# for running the local_embedding_model.ipynb Jupyter notebook
-echo "Setting up virtual environment for local_embedding_model.ipynb..."
+# for running vector-search-lab.ipynb / local_embedding_model.ipynb Jupyter notebooks
+echo "Setting up virtual environment for vector-search-lab/local_embedding_model notebooks..."
 
 # Check if python3 is available
 if ! command -v python3 &> /dev/null; then
@@ -39,7 +48,20 @@ pip install --upgrade pip
 
 # Install required packages
 echo "Installing required packages..."
-pip install oracledb sentence-transformers PyPDF2 jupyterlab ipykernel
+pip install \
+  oracledb \
+  sentence-transformers \
+  transformers \
+  torch \
+  PyPDF2 \
+  python-dotenv \
+  jupyterlab \
+  ipykernel
+
+# Optional packages for lower-memory/int8 model loading.
+# Not all platforms support bitsandbytes; continue if it fails.
+echo "Installing optional int8 support packages (best effort)..."
+pip install accelerate bitsandbytes || echo "Warning: bitsandbytes/accelerate not available on this platform. Falling back to standard model loading is expected."
 
 # Install the kernel for Jupyter
 echo "Installing Jupyter kernel..."
@@ -49,17 +71,24 @@ python -m ipykernel install --user --name=local_embedding_env
 echo "Verifying installations..."
 python -c "import oracledb; print('oracledb:', oracledb.__version__)" || echo "Warning: oracledb import failed"
 python -c "import sentence_transformers; print('sentence-transformers: OK')" || echo "Warning: sentence_transformers import failed"
+python -c "import transformers; print('transformers: OK')" || echo "Warning: transformers import failed"
+python -c "import torch; print('torch:', torch.__version__)" || echo "Warning: torch import failed"
 python -c "import PyPDF2; print('PyPDF2: OK')" || echo "Warning: PyPDF2 import failed"
+python -c "import dotenv; print('python-dotenv: OK')" || echo "Warning: python-dotenv import failed"
 python -c "import jupyterlab; print('jupyterlab: OK')" || echo "Warning: jupyterlab import failed"
+python -c "import accelerate; print('accelerate: OK')" || echo "Warning: accelerate import failed (optional)"
+python -c "import bitsandbytes as bnb; print('bitsandbytes: OK')" || echo "Warning: bitsandbytes import failed (optional for int8)"
 
 echo ""
 echo "Setup complete!"
 echo ""
-echo "To activate the environment in future sessions, run the following in the oracle-lab-temp directory:"
+echo "To activate the environment in future sessions, run:"
 echo "source ./lib/.venv/bin/activate"
 echo ""
 echo "To start Jupyter Lab, run:"
 echo "jupyter lab"
 echo ""
 echo "In Jupyter Lab, select the 'local_embedding_env' kernel when opening the notebook."
-echo "The notebook local_embedding_model.ipynb can be found in the current directory."
+echo "Notebooks supported by this environment include vector-search-lab.ipynb and local_embedding_model.ipynb."
+echo "Clean up your environment by deactivating with 'deactivate' and removing the ./lib/.venv directory if needed."
+echo "Remove the large model stored in your .cache/huggingface directory if you want to free up disk space after setup."
