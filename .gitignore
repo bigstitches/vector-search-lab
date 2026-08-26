@@ -4,4 +4,5 @@
 .env.*.local
 *.key
 *.pem
+*.sql
 secrets.json

@@ -1,119 +1,71 @@
 # Vector Search Lab
 
-This project is a hands-on Jupyter lab that walks through the core parts of a Retrieval-Augmented Generation (RAG) workflow using:
+`vector-search-lab.ipynb` is a hands-on Jupyter notebook that demonstrates a small retrieval-augmented generation (RAG) workflow with a local PDF, sentence-transformer embeddings, and Oracle Autonomous Database vector search.
 
-- A local embedding model (`sentence-transformers`, default `all-MiniLM-L6-v2`)
-- A local PDF document as source data
-- Oracle Autonomous Database with native `VECTOR` type
-- Oracle vector distance search (`VECTOR_DISTANCE` with cosine)
+## What the lab does
 
-The notebook file is:
+1. Reads and chunks `oil_paints.pdf` from this project directory.
+2. Creates embeddings with `sentence-transformers` and `all-MiniLM-L6-v2`.
+3. Stores chunks and 384-dimension vectors in the Oracle table `oil_paint_chunks`.
+4. Searches both locally (cosine similarity) and in Oracle (`VECTOR_DISTANCE`).
+5. Optionally generates an answer from retrieved Oracle results using GPT-2.
 
-- `vector-search-lab.ipynb`
+## Project contents
 
----
+- `vector-search-lab.ipynb` — main lab notebook.
+- `oil_paints.pdf` — the default document embedded by the notebook. Replace it with another text-based PDF if desired, keeping the filename or updating `PDF_PATH` in the notebook.
+- `setup_venv.sh` — creates `lib/.venv`, installs dependencies, and registers the `local_embedding_env` Jupyter kernel.
+- `DBMS_VECTOR.sql` — separate Oracle Database vector SQL examples; it is not executed by the notebook.
+- `minilm_l6_v2_onnx/` — local ONNX model assets retained with the project. The notebook currently loads `all-MiniLM-L6-v2` through `SentenceTransformer`, which uses the Hugging Face cache rather than this directory.
+- `.env` — local, untracked database credentials; create this yourself.
 
-## What the lab covers
-
-The notebook implements 4 of the 5 common RAG stages:
-
-1. **Document ingestion & chunking**
-   Reads a local PDF and splits page text into overlapping chunks.
-
-2. **Embedding generation**
-   Uses a local sentence-transformer model to convert chunks into vector embeddings.
-
-3. **Vector storage in Oracle**
-   Creates/truncates `oil_paint_chunks` and stores:
-   - `page_number`
-   - `chunk_index`
-   - `text_chunk` (CLOB)
-   - `embedding` (VECTOR(384))
-
-4. **Semantic retrieval**
-   Runs:
-   - local cosine similarity search in Python
-   - Oracle-native vector search using SQL `VECTOR_DISTANCE`
-
-> The final LLM answer-generation step is intentionally not implemented in this notebook.
-
----
-
-## Repository contents
-
-- `vector-search-lab.ipynb` — main lab notebook
-- `setup_venv.sh` — helper script to create the Python virtual environment and install dependencies
-- `.env` — expected place for DB credentials and connection alias
-
----
+The remaining setup documents and `setup_computeinstance.sh` are optional guides or provisioning aids; the main notebook does not use them.
 
 ## Prerequisites
 
-- Python 3.13+
-- Oracle Autonomous Database access
-- Downloaded Oracle wallet ZIP (e.g., `Wallet_livelab.zip`)
-- Local PDF document to embed
+- Python 3 with `venv` support.
+- Oracle Autonomous Database access with Oracle AI Vector Search support.
+- An Oracle wallet ZIP, such as `~/Downloads/Wallet_livelab.zip`.
+- At least several GB of free disk space for the Python environment and downloaded models.
 
-For DB connectivity, the notebook expects wallet files under:
-
-- `~/oracle_wallet`
-
-and uses wallet-based `python-oracledb` connections.
-
----
+The notebook extracts the wallet to `~/oracle_wallet` on its first run and uses wallet-based `python-oracledb` connections.
 
 ## Setup
 
-1. Create the virtual environment and install packages:
+From the project directory, create the environment:
 
 ```bash
 bash setup_venv.sh
-```
-
-2. Activate the environment:
-
-```bash
 source ./lib/.venv/bin/activate
-```
-
-3. Launch Jupyter:
-
-```bash
 jupyter lab
 ```
 
-4. Open `vector-search-lab.ipynb` and select the project interpreter/kernel.
+Open `vector-search-lab.ipynb` in JupyterLab and choose the **local_embedding_env** kernel.
 
----
+On first use, the embedding model and GPT-2 may download from Hugging Face. Subsequent runs can use the local Hugging Face cache.
 
-## Environment variables
+## Database configuration
 
-The notebook reads these from `.env`:
+Create a `.env` file in the project root:
 
-- `DB_USER`
-- `DB_PASSWORD`
-- `CONNECT_STRING` (example: `livelab_high`)
+```dotenv
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
+CONNECT_STRING=your_service_name
+```
 
-Make sure they are set before running DB cells.
+For example, `CONNECT_STRING` might be `livelab_high`. Do not commit this file.
 
----
+Before running the database cells, place the downloaded wallet ZIP at `~/Downloads/Wallet_livelab.zip`, or change `wallet_zip` in the notebook to match its location.
 
-## Suggested run order in notebook
+## Running the notebook
 
-1. Environment + interpreter checks
-2. Connection setup / `test_connection()`
-3. PDF loading
-4. Embedding model load
-5. Chunking + embedding generation
-6. Table create/truncate
-7. Insert embeddings
-8. Local semantic search test
-9. Oracle semantic search test
+Run the cells in order. The database setup cell creates `oil_paint_chunks` if necessary and truncates it on later runs, so rerunning the ingestion portion replaces the table's contents.
 
----
+To use another document, put a text-based PDF in the project directory and change this notebook setting:
 
-## Notes
+```python
+PDF_PATH = Path('your-document.pdf')
+```
 
-- The notebook includes both local retrieval and Oracle retrieval so you can compare behavior.
-- If model download is blocked, run once with internet access to cache model files locally.
-- If Oracle wallet SSL/cert issues occur, confirm wallet path consistency and that the same Python environment/kernel is being used throughout.
+The final GPT-2 answer-generation cells are optional. The retrieval sections can be used independently.
